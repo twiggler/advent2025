@@ -1,0 +1,29 @@
+cabal-version:   3.8
+name:            advent2025
+version:         0.1.0.0
+license:         NONE
+author:          12800443+twiggler@users.noreply.github.com
+maintainer:      Roel de Jong
+build-type:      Simple
+extra-doc-files: README.md
+
+common base-settings
+    ghc-options: -Wall
+    build-depends: base ^>=4.19.2.0
+    default-extensions: ImportQualifiedPost, DeriveFunctor, FlexibleInstances, TupleSections
+    default-language: Haskell2010
+
+library
+    import:           base-settings
+    exposed-modules:  Parsing, 
+    build-depends:    megaparsec ^>=9.7.0,
+                      text ^>=2.1.1
+    hs-source-dirs:   common
+
+executable 1
+    import:           base-settings
+    main-is:          main.hs
+    build-depends:    megaparsec ^>=9.7.0,
+                      text ^>=2.1.1,
+                      advent2025
+    hs-source-dirs:   1
