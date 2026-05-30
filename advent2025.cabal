@@ -27,3 +27,14 @@ executable 1
                       text ^>=2.1.1,
                       advent2025
     hs-source-dirs:   1
+
+executable 2
+    import:           base-settings
+    main-is:          main.hs
+    build-depends:    megaparsec ^>=9.7.0,
+                      text ^>=2.1.1,
+                      integer-logarithms ^>=1.0.4,
+                      errors ^>=2.3.0,
+                      advent2025
+    hs-source-dirs:   2
+
