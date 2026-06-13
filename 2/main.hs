@@ -1,70 +1,91 @@
-import Control.Error.Util (note)
+import Data.Containers.ListUtils (nubOrd)
+import Data.List (intersect)
+import Data.List.NonEmpty qualified as NE
 import Math.NumberTheory.Logarithms (integerLog10')
-import Parsing (Parser, parseFile)
+import Parsing
 import System.Environment (getArgs)
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
 
-data ValidationRange = Empty | ValidationRange !Integer !Integer
+data IdRange = Empty | IdRange !Int !Int
   deriving (Show)
 
-data AppError = InvalidInterval deriving (Show)
-
-readProductIdRanges :: Parser [(Integer, Integer)]
+readProductIdRanges :: Parser [(Int, Int)]
 readProductIdRanges = sepBy productIdRange (char ',') <* eol <* eof
   where
     productIdRange = (,) <$> L.decimal <* char '-' <*> L.decimal
 
-nDigits :: Integer -> Int
+nDigits :: Int -> Int
 nDigits 0 = 1
-nDigits x = integerLog10' x + 1
+nDigits x = integerLog10' (toInteger x) + 1
 
-minId, maxId :: Int -> Integer
-minId n = 10 ^ (n - 1)
-maxId n = 10 ^ n - 1
+idLength :: IdRange -> Int
+idLength Empty = 0
+idLength (IdRange low _) = nDigits low
 
-mkIdInterval :: (Integer, Integer) -> Maybe ValidationRange
-mkIdInterval (a, b)
+primeFactors :: Int -> [Int]
+primeFactors n = NE.head <$> NE.group (factor n 2)
+  where
+    factor 1 _ = []
+    factor m f
+      | f * f > m = [m]
+      | m `mod` f == 0 = f : factor (m `div` f) f
+      | otherwise = factor m (f + 1)
+
+mkIdRanges :: (Int, Int) -> Maybe [IdRange]
+mkIdRanges (a, b)
   | a > b = Nothing
   | a <= 0 = Nothing
   | digitsB - digitsA > 1 = Nothing
-  | otherwise = case (even digitsA, even digitsB) of
-      (True, True) -> Just $ ValidationRange a b
-      (True, False) -> Just $ ValidationRange a (maxId digitsA)
-      (False, True) -> Just $ ValidationRange (minId digitsB) b
-      (False, False) -> Just Empty
+  | otherwise =
+      Just $
+        if digitsA == digitsB
+          then [IdRange a b]
+          else
+            [ IdRange a (10 ^ digitsA - 1),
+              IdRange (10 ^ (digitsB - 1)) b
+            ]
   where
     digitsA = nDigits a
     digitsB = nDigits b
 
-splitId :: Integer -> (Integer, Integer)
-splitId a = a `quotRem` (10 ^ (nDigits a `div` 2))
+splitId :: Int -> Int -> (Int, Int)
+splitId factor a = a `quotRem` (10 ^ (nDigits a - nDigits a `div` factor))
 
-doubleId :: Integer -> Integer
-doubleId a = a + a * 10 ^ nDigits a
+expandId :: Int -> Int -> Int
+expandId n a = sum [a * 10 ^ (i * nDigits a) | i <- [0 .. n - 1]]
 
-invalidIdsInRange :: ValidationRange -> [Integer]
-invalidIdsInRange Empty = []
-invalidIdsInRange (ValidationRange a b)
-  | a2 == b2 = [doubleId b2 | a1 <= b2 && b2 <= b1]
-  | otherwise = left ++ middle ++ right
+invalidIdsInRange :: IdRange -> Int -> [Int]
+invalidIdsInRange Empty _ = []
+invalidIdsInRange (IdRange low high) factor
+  | lowerMajor == upperMajor = expandId factor <$> (left `intersect` right)
+  | otherwise = expandId factor <$> (left ++ middle ++ right)
   where
-    (a2, a1) = splitId a
-    (b2, b1) = splitId b
-    left = [doubleId a2 | a1 <= a2]
-    middle = [doubleId x | x <- [succ a2 .. pred b2]]
-    right = [doubleId b2 | b2 <= b1]
+    (lowerMajor, lowerMinor) = splitId factor low
+    (upperMajor, upperMinor) = splitId factor high
+    left = [lowerMajor | lowerMinor <= expandId (factor - 1) lowerMajor]
+    middle = [succ lowerMajor .. pred upperMajor]
+    right = [upperMajor | expandId (factor - 1) upperMajor <= upperMinor]
 
-solve1 :: [(Integer, Integer)] -> Either AppError Integer
-solve1 ranges =
-  note InvalidInterval (traverse mkIdInterval ranges)
-    >>= Right . sum . concatMap invalidIdsInRange
+method1, method2 :: IdRange -> [Int]
+method1 r = if even (idLength r) then invalidIdsInRange r 2 else []
+-- nubOrd is needed because different prime factors can result in invalid ids consisting of a repeating digit.
+method2 r = nubOrd $ invalidIdsInRange r `concatMap` primeFactors (idLength r)
+
+solve :: (IdRange -> [Int]) -> [(Int, Int)] -> Maybe Int
+solve method =
+  fmap (sum . concatMap method . concat) . traverse mkIdRanges
 
 main :: IO ()
 main = do
   (productIdRangesFile : _) <- getArgs
   productIdRanges <- parseFile readProductIdRanges productIdRangesFile
-  case solve1 productIdRanges of
-    Left err -> putStrLn $ "Error: " ++ show err
-    Right invalidIdSum -> putStrLn $ "Sum of invalid product IDs is: " ++ show invalidIdSum
+
+  case solve method1 productIdRanges of
+    Nothing -> putStrLn "Error: invalid validation range"
+    Just sumMethod1 -> putStrLn $ "Sum of invalid Ids (method 1): " ++ show sumMethod1
+
+  case solve method2 productIdRanges of
+    Nothing -> putStrLn "Error: invalid validation range"
+    Just sumMethod2 -> putStrLn $ "Sum of invalid Ids (method 2): " ++ show sumMethod2

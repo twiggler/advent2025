@@ -35,6 +35,7 @@ executable 2
                       text ^>=2.1.1,
                       integer-logarithms ^>=1.0.4,
                       errors ^>=2.3.0,
+                      containers ^>=0.7,
                       advent2025
     hs-source-dirs:   2
 
