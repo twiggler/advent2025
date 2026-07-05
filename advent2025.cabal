@@ -39,3 +39,12 @@ executable 2
                       advent2025
     hs-source-dirs:   2
 
+executable 3
+    import:           base-settings
+    main-is:          main.hs
+    build-depends:    megaparsec ^>=9.7.0,
+                      text ^>=2.1.1,
+                      safe ^>=0.3.21,
+                      advent2025
+    hs-source-dirs:   3
+
