@@ -14,7 +14,8 @@ bankJoltRating :: [Int] -> Int
 bankJoltRating bank =
   foldl' (\acc b -> acc * 10 + b) 0 bank
 
--- After reading other solutions, it turns out I implemented a monotonic stack, implemented using a vector.
+-- After reading other solutions, it turns out I implemented a monotonic stack,
+-- but using a vector instead of a list.
 -- The vector is probably faster for small n, but asymptotically a list approach would win.
 selectBatteries :: Int -> [Int] -> [Int]
 selectBatteries n bank =
