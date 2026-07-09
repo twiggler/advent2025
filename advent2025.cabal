@@ -44,7 +44,6 @@ executable 3
     main-is:          main.hs
     build-depends:    megaparsec ^>=9.7.0,
                       text ^>=2.1.1,
-                      safe ^>=0.3.21,
+                      vector ^>=0.13.2,
                       advent2025
     hs-source-dirs:   3
-
