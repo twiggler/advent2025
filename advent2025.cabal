@@ -41,3 +41,10 @@ executable 3
     build-depends:    vector ^>=0.13.2,
                       advent2025
     hs-source-dirs:   3
+
+executable 4
+    import:           base-settings
+    main-is:          main.hs
+    build-depends:    unordered-containers ^>=0.2.20.1,
+                      advent2025
+    hs-source-dirs:   4
