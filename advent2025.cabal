@@ -46,5 +46,6 @@ executable 4
     import:           base-settings
     main-is:          main.hs
     build-depends:    unordered-containers ^>=0.2.20.1,
+                      psqueues ^>=0.2.8.2,
                       advent2025
     hs-source-dirs:   4
