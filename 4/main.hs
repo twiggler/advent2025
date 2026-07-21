@@ -1,3 +1,6 @@
+import Data.Bifunctor (first)
+import Data.HashPSQ (HashPSQ)
+import Data.HashPSQ qualified as PQ
 import Data.HashSet (HashSet)
 import Data.HashSet qualified as HS
 import Parsing
@@ -8,6 +11,8 @@ import Text.Megaparsec.Char
 type Coord2 = (Int, Int)
 
 type PaperRollCoords = HashSet Coord2
+
+type PaperRollQueue = HashPSQ Coord2 Int [Coord2]
 
 data Cell = PaperRoll | Empty deriving (Eq, Show)
 
@@ -35,16 +40,37 @@ neighbors = \(x, y) ->
   where
     offsets = [(dx, dy) | dx <- [-1, 0, 1], dy <- [-1, 0, 1], (dx, dy) /= (0, 0)]
 
+adjacentPaperRolls :: PaperRollCoords -> Coord2 -> [Coord2]
+adjacentPaperRolls paperRolls coord =
+  filter (`HS.member` paperRolls) (neighbors coord)
+
+adjustPaperRollQueue :: ((Int, [Coord2]) -> (Int, [Coord2])) -> Coord2 -> PaperRollQueue -> PaperRollQueue
+adjustPaperRollQueue f k q = snd $ PQ.alter (((),) . fmap f) k q
+
 solve1 :: [[Cell]] -> Int
 solve1 diagram =
   let paperRolls = mkPaperRolls diagram
-      hasPaperRoll = (`HS.member` paperRolls)
-      paperRollNeighbors =
-        [ length $ filter hasPaperRoll neighborHood
-        | coord <- HS.toList paperRolls,
-          let neighborHood = neighbors coord
-        ]
-   in length $ filter (< 4) paperRollNeighbors
+      paperRollNeighbors = [adjacentPaperRolls paperRolls coord | coord <- HS.toList paperRolls]
+   in length $ filter (\adj -> length adj < 4) paperRollNeighbors
+
+solve2 :: [[Cell]] -> Int
+solve2 diagram =
+  let paperRolls = mkPaperRolls diagram
+      queue =
+        PQ.fromList
+          [ (coord, length adj, adj)
+          | coord <- HS.toList paperRolls,
+            let adj = adjacentPaperRolls paperRolls coord
+          ]
+   in length queue - length (go queue)
+  where
+    go queue =
+      case PQ.atMostView 3 queue of
+        ([], _) -> queue
+        (removedRolls, queue') ->
+          let lostNeighbor = [roll | (_, _, adj) <- removedRolls, roll <- adj]
+              decreasePriority = flip $ adjustPaperRollQueue (first pred)
+           in go (foldl' decreasePriority queue' lostNeighbor)
 
 main :: IO ()
 main = do
@@ -52,3 +78,5 @@ main = do
   paperRollDiagram <- parseFile readPaperRollDiagram paperRollFile
   let accessiblePaperRolls = solve1 paperRollDiagram
   putStrLn $ "Accessible paper rolls: " ++ show accessiblePaperRolls
+  let removedPaperRolls = solve2 paperRollDiagram
+  putStrLn $ "Removed paper rolls: " ++ show removedPaperRolls
