@@ -49,3 +49,10 @@ executable 4
                       psqueues ^>=0.2.8.2,
                       advent2025
     hs-source-dirs:   4
+
+executable 5
+    import:           base-settings
+    main-is:          main.hs
+    build-depends:    advent2025,
+                      IntervalMap ^>= 0.6.2.4
+    hs-source-dirs:   5
