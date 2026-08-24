@@ -18,7 +18,9 @@ common base-settings
 
 library
     import:           base-settings
-    exposed-modules:  Parsing, 
+    build-depends:    mtl ^>=2.3.2
+    exposed-modules:  Parsing,
+                      Number 
     hs-source-dirs:   common
 
 executable 1
@@ -56,3 +58,11 @@ executable 5
     build-depends:    advent2025,
                       IntervalMap ^>= 0.6.2.4
     hs-source-dirs:   5
+
+executable 6
+    import:           base-settings
+    main-is:          main.hs
+    build-depends:    advent2025,
+                      mtl ^>=2.3.2,
+                      split ^>=0.2.5  
+    hs-source-dirs:   6

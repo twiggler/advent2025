@@ -1,4 +1,5 @@
 import Data.Char (digitToInt)
+import Number (assembleNumber)
 import Data.Vector.Unboxed qualified as V
 import Parsing
 import System.Environment (getArgs)
@@ -9,10 +10,6 @@ readBatteryBanks :: Parser [[Int]]
 readBatteryBanks = endBy bank eol <* eof
   where
     bank = many (digitToInt <$> digitChar)
-
-bankJoltRating :: [Int] -> Int
-bankJoltRating bank =
-  foldl' (\acc b -> acc * 10 + b) 0 bank
 
 -- After reading other solutions, it turns out I implemented a monotonic stack,
 -- but using a vector instead of a list.
@@ -39,7 +36,7 @@ selectBatteries n bank =
                     | otherwise = 0
            
 solve :: Int -> [[Int]] -> Int
-solve n = sum . fmap (bankJoltRating . (selectBatteries n))
+solve n = sum . fmap (assembleNumber . (selectBatteries n))
 
 main :: IO ()
 main = do
