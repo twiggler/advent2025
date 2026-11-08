@@ -1,45 +1,76 @@
 import Control.Monad (mfilter)
 import Data.Functor ((<&>))
-import Data.HashSet as HS
-import Data.IntMap.Strict as IM
-import Data.IntSet as IS
+import Data.HashMap.Lazy qualified as HM
+import Data.HashSet qualified as HS
+import Data.IntMap.Strict (IntMap)
+import Data.IntMap.Strict qualified as IM
+import Data.IntSet (IntSet)
+import Data.IntSet qualified as IS
 import Parsing
 import System.Environment (getArgs)
 import Text.Megaparsec
 import Text.Megaparsec.Char (char, eol)
 
-data Cell = Empty | Splitter | Start deriving (Eq)
+data Cell = Empty | Splitter | Start
 
-readTachyonManifold :: Parser [[Cell]]
-readTachyonManifold = endBy (many cell) eol <* eof
+type Coord = (Int, Int)
+
+data TachyonManifold = TachyonManifold
+  { splitterYByX :: IntMap IntSet,
+    entrances :: [Coord]
+  }
+
+readTachyonGrid :: Parser [[Cell]]
+readTachyonGrid = endBy (many cell) eol <* eof
   where
     cell = (Empty <$ char '.') <|> (Splitter <$ char '^') <|> (Start <$ char 'S')
 
-solve1 :: [[Cell]] -> Int
-solve1 grid = HS.size $ go entrances HS.empty
+mkTachyonManifold :: [[Cell]] -> TachyonManifold
+mkTachyonManifold grid =
+  TachyonManifold
+    { splitterYByX =
+        IM.fromListWith
+          IS.union
+          [ (x, IS.singleton y) | (x, y, Splitter) <- cellWithCoords
+          ],
+      entrances = [(x, y) | (x, y, Start) <- cellWithCoords]
+    }
   where
     cellWithCoords = [(x, y, cell) | (y, row) <- zip [0 ..] grid, (x, cell) <- zip [0 ..] row]
 
-    entrances = [(x, y) | (x, y, cell) <- cellWithCoords, cell == Start]
+castBeam :: IntMap IntSet -> Coord -> Maybe Coord
+castBeam splitterYByX' (x, y) = IM.lookup x splitterYByX' >>= IS.lookupGT y <&> (x,)
 
-    splitterYByX =
-      IM.fromListWith IS.union [(x, IS.singleton y) | (x, y, cell) <- cellWithCoords, cell == Splitter]
+splitParticle :: Coord -> [Coord]
+splitParticle (x, y) = [(x - 1, y), (x + 1, y)]
 
-    go (pos : rest) visited
-      | pos `HS.member` visited = go rest visited
-      | otherwise = case mfilter unexplored (castBeam pos) of
-          Just (splitterX, splitterY) ->
-            let children = [(splitterX - 1, splitterY), (splitterX + 1, splitterY)]
-             in go (children ++ rest) (HS.insert (splitterX, splitterY) visited)
-          Nothing -> go rest visited
+solve1 :: TachyonManifold -> Int
+solve1 (TachyonManifold splitterYByX' entrances') = HS.size $ go entrances' HS.empty
+  where
+    go (pos : rest) visited =
+      case mfilter unexplored (castBeam splitterYByX' pos) of
+        Just splitter ->
+          let children = splitParticle splitter
+           in go (children ++ rest) (HS.insert splitter visited)
+        Nothing -> go rest visited
       where
         unexplored (x, y) = not $ (x, y) `HS.member` visited
-        castBeam (x, y) = IM.lookup x splitterYByX >>= IS.lookupGT y <&> (x,)
     go [] visited = visited
+
+solve2 :: TachyonManifold -> Int
+solve2 (TachyonManifold splitterYByX' entrances') = sum $ countTimelines <$> entrances'
+  where
+    splitters = [(x, y) | (x, ys) <- IM.toList splitterYByX', y <- IS.toList ys]
+
+    timelinesBySplitter = HM.fromList [(s, sum (countTimelines <$> splitParticle s)) | s <- splitters]
+    countTimelines coord = maybe 1 (timelinesBySplitter HM.!) (castBeam splitterYByX' coord)
 
 main :: IO ()
 main = do
   (tachyonManifoldFile : _) <- getArgs
-  tachyonManifold <- parseFile readTachyonManifold tachyonManifoldFile
+  tachyonGrid <- parseFile readTachyonGrid tachyonManifoldFile
+  let tachyonManifold = mkTachyonManifold tachyonGrid
   let numberOfSplits = solve1 tachyonManifold
-  putStrLn $ "Number of splits: " ++ show numberOfSplits
+  putStrLn $ "Number of splits: " <> show numberOfSplits
+  let numberOfTimelines = solve2 tachyonManifold
+  putStrLn $ "Number of timelines: " <> show numberOfTimelines
