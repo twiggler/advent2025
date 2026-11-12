@@ -74,3 +74,11 @@ executable 7
                       advent2025,
                       unordered-containers ^>=0.2.20.1
     hs-source-dirs:   7
+
+executable 8
+    import:           base-settings
+    main-is:          main.hs
+    build-depends:    advent2025,
+                      linear ^>=1.23.3,
+                      disjoint-containers ^>=0.3.0.1
+    hs-source-dirs:   8
